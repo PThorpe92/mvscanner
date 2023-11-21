@@ -27,50 +27,67 @@
  * ********************************************************************************
  */
 
+import { createResource } from 'solid-js';
 import './App.css'
-import {STable, STableAction} from "./components/STable.tsx";
-import { SResident, STimestampResident} from "./types/Models.ts";
+import { getResidentsOut, getResidentsIn } from './api/ResidentInOut';
+import { STable, STableAction} from './components/STable';
+import { createResident } from './api/CreateResident';
+import { createTimestamp } from './api/CreateTimestamp';
+
 function App() {
 
 
-  let e:STimestampResident[] = [
+  console.log("[+] - Calling Create Resident");
+  // Call Resident API
+  createResident({
+    name: "Lorenzo A. Banks",
+    doc: "122750",
+    rfid: "02938172839483728",
+    room: "A-1",
+    unit: 7,
+  });
+
+  console.log("[+] - Calling Create Resident");
+  // 
+  createTimestamp({
+    rfid: "02938172839483728",
+    destinationId: 12,
+  });
+
+
+  const residentActions:STableAction[] = [
     {
-      rfid: "83726384958372839",
-      name: "Banks, Lorenzo",
-      doc: "122750",
-      timestamp: "2021-08-23T15:09:00Z",
-      housingPod: "A",
-      room: "11-T",
-      timestampLeft:"2021-08-23T15:09:00Z",
-      destinationLabel: "Music Room"
-    },
-    {
-      rfid: "83726384953678293",
-      name: "Martin, Sherry",
-      doc: "120030",
-      timestamp: "2021-08-23T15:09:00Z",
-      housingPod: "A",
-      room: "19-T",
-      timestampLeft:"2021-08-23T15:09:00Z",
-      destinationLabel: "Gym"
-    },
-    {
-      rfid: "83726384958372839",
-      name: "Decker, John",
-      doc: "449320",
-      timestamp: "2021-08-23T15:09:00Z",
-      housingPod: "A",
-      room: "32-B",
-      timestampLeft:"2021-08-23T15:09:00Z",
-      destinationLabel: "Education"
+      actionLabel: 'Edit',
+      actionFunction: () => {
+        console.log("Edit");
+      }
     }
-  ]
+
+  ];
+
+
+  const [outResidentsData] = createResource(getResidentsOut,  {initialValue:    {data:[], priorityData:[]} });
+  const [inResidentsData] = createResource(getResidentsIn,    {initialValue:    {data:[]} });
 
   return (
-      <>
-        <STable type={"TimestampResident"} data={e} />
-      </>
-  )
+    <div class={"flex flex-row justify-end gap-x-2 px-2 py-3"}>
+
+      <div class={"flex w-[49em]"}>
+        {outResidentsData.loading ? (<div>Loading...</div>): (
+          <STable type='TimestampResident' data={outResidentsData()} />
+        )}
+      </div>
+
+      <div class={"flex w-[30em]"}>
+        {inResidentsData.loading ? (<div>Loading...</div>): (
+          <STable type='Resident' data={inResidentsData()} actions={residentActions} />
+        )}
+      </div>
+
+    </div>
+  );
+;
+
 }
 
 export default App

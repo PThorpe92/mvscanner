@@ -1,9 +1,11 @@
+use actix_cors::Cors;
 use actix_web::{
     middleware,
     web::{Data, JsonConfig},
     App, HttpServer,
 };
 use r2d2_sqlite::SqliteConnectionManager;
+use reqwest::header;
 use scan_mvcf::{
     controllers::{locations_controller, residents_controller, timestamps_controller},
     database::db::{query, Query},
@@ -21,11 +23,16 @@ async fn main() -> io::Result<()> {
         .expect("Not pointing to proper file");
     if let Some(args) = std::env::args().nth(1) {
         match args.as_str() {
-            "--seed" => {
-                if query(&pool, Query::SeedTestData).await.is_ok() {
-                    log::info!("database seeded with test data");
+            "--test-seed" => {
+                if query(&pool, Query::Migrations).await.is_ok() {
+                    log::info!("database migrations complete");
+                    if query(&pool, Query::SeedTestData).await.is_ok() {
+                        log::info!("database seeded with test data");
+                    } else {
+                        log::info!("database seed failed");
+                    }
                 } else {
-                    log::info!("database seed failed");
+                    log::info!("database migrations failed");
                 }
             }
             "--migrate" => {
@@ -43,6 +50,12 @@ async fn main() -> io::Result<()> {
     log::info!("starting Actix-Web HTTP server at http://localhost:8080");
     let json_config = JsonConfig::default().limit(4096);
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT])
+            .max_age(3600);
+
         App::new()
             .app_data(Data::new(pool.clone()))
             .app_data(json_config.clone())
@@ -63,6 +76,7 @@ async fn main() -> io::Result<()> {
             .service(timestamps_controller::show_range)
             .service(timestamps_controller::store_timestamp)
             .wrap(middleware::Logger::default())
+            .wrap(cors)
     })
     .bind(("127.0.0.1", 8080))?
     .workers(2)
